@@ -7,10 +7,10 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 # ================= CONFIG =================
 TOKEN = os.getenv("BOT_TOKEN")
 DOMAIN = os.getenv("DOMAIN")
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "private-hook")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 
-if not TOKEN or not DOMAIN:
-    raise ValueError("BOT_TOKEN yoki DOMAIN topilmadi")
+if not TOKEN or not DOMAIN or not WEBHOOK_SECRET:
+    raise ValueError("BOT_TOKEN, DOMAIN yoki WEBHOOK_SECRET set qilinmagan!")
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
@@ -19,15 +19,14 @@ app = Flask(__name__)
 os.makedirs("albums", exist_ok=True)
 os.makedirs("temp_files", exist_ok=True)
 
-user_state = {}      # user actions
-temp_files = {}      # vaqtinchalik fayllar
+user_state = {}
+temp_files = {}
 
 # ================= WEBHOOK =================
 @app.route(f"/{WEBHOOK_SECRET}", methods=["POST"])
 def webhook():
-    update = telebot.types.Update.de_json(
-        request.get_data().decode("utf-8")
-    )
+    json_str = request.get_data().decode("utf-8")
+    update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
     return "OK", 200
 
@@ -45,18 +44,15 @@ def start(message):
 def callback(c):
     uid = str(c.from_user.id)
 
-    # CREATE
     if c.data == "create":
         user_state[uid] = {"step": "album_name"}
         bot.send_message(c.message.chat.id, "📝 Albom nomini yozing:")
 
-    # OPEN
     elif c.data == "open":
         base = f"albums/{uid}"
         if not os.path.exists(base):
             bot.send_message(c.message.chat.id, "❌ Albom yo‘q")
             return
-
         kb = InlineKeyboardMarkup()
         for a in os.listdir(base):
             kb.add(InlineKeyboardButton(a, callback_data=f"open_{a}"))
@@ -65,30 +61,25 @@ def callback(c):
     elif c.data.startswith("open_"):
         album = c.data.replace("open_", "")
         path = f"albums/{uid}/{album}"
-
         if not os.path.exists(path):
             bot.send_message(c.message.chat.id, "❌ Albom topilmadi")
             return
-
         for f in os.listdir(path):
             fp = os.path.join(path, f)
             with open(fp, "rb") as file:
-                if f.endswith((".jpg", ".png", ".jpeg")):
+                if f.lower().endswith((".jpg",".png",".jpeg")):
                     bot.send_photo(c.message.chat.id, file)
                 else:
                     bot.send_video(c.message.chat.id, file)
-
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton("✅ Tayyor / Yopish", callback_data="done"))
         bot.send_message(c.message.chat.id, "Tugatdingizmi?", reply_markup=kb)
 
-    # DELETE
     elif c.data == "delete":
         base = f"albums/{uid}"
         if not os.path.exists(base):
             bot.send_message(c.message.chat.id, "❌ Albom yo‘q")
             return
-
         kb = InlineKeyboardMarkup()
         for a in os.listdir(base):
             kb.add(InlineKeyboardButton(a, callback_data=f"del_{a}"))
@@ -155,6 +146,11 @@ def files(message):
 
 # ================= RUN =================
 if __name__ == "__main__":
+    PORT = int(os.environ.get("PORT", 8080))
     bot.remove_webhook()
-    bot.set_webhook(f"https://{DOMAIN}/{WEBHOOK_SECRET}")
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
+    bot.set_webhook(
+        url=f"https://{DOMAIN}/{WEBHOOK_SECRET}",
+        drop_pending_updates=True
+    )
+    app.run(host="0.0.0.0", port=PORT)
+
