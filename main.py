@@ -5,12 +5,9 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ================= CONFIG =================
-TOKEN = os.getenv("BOT_TOKEN")
-DOMAIN = os.getenv("DOMAIN")
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
-
-if not TOKEN or not DOMAIN or not WEBHOOK_SECRET:
-    raise ValueError("BOT_TOKEN, DOMAIN yoki WEBHOOK_SECRET set qilinmagan!")
+TOKEN = os.getenv("BOT_TOKEN", "8526042266:AAEYo689YISaPfOM9X3FMHtElGUCbgkZcUw")
+DOMAIN = os.getenv("DOMAIN", "xotirabotwh-production.up.railway.app")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "xotirabot_0343")
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
@@ -153,4 +150,3 @@ if __name__ == "__main__":
         drop_pending_updates=True
     )
     app.run(host="0.0.0.0", port=PORT)
-
